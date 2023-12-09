@@ -68,10 +68,11 @@ jobs:
           PRIVATE_KEY: ${{ secrets.SSH_KEY }}
         run: |
           echo "$PRIVATE_KEY" >> $HOME/key.pem
-          chmod 400 $HOME/key.pem
+          sudo chmod 400 $HOME/key.pem
           ssh -i $HOME/key.pem ec2-user:$EC2_IP
           aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | sudo docker login --username AWS --password-stdin $ECR_REGISTRY
           sudo docker pull $ECR_REGISTRY/$ECR_REPOSITORY
           sudo docker stop $CONTAINER_NAME
           sudo docker rm $CONTAINER_NAME
           sudo docker run -d -p 80:80 --name $CONTAINER_NAME $ECR_REGISTRY/$ECR_REPOSITORY
+          sudo docker image prune -a -f
