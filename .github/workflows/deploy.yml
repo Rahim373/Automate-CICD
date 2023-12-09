@@ -74,23 +74,21 @@ jobs:
       - name: 1️⃣ SSH into EC2 instance and Deploy docker image
         uses: appleboy/ssh-action@v1.0.0
         env:
-          AWS_REGION: ${{ secrets.AWS_REGION }}
-          REGISTRY: ${{ needs.publish.outputs.registry }}
+          INPUT_AWS_REGION: ${{ secrets.AWS_REGION }}
+          INPUT_REGISTRY: ${{ needs.publish.outputs.registry }}
         with:
           host: ${{ env.HOST }}
           username: ec2-user
           key: ${{ secrets.SSH_KEY }}
           script_stop: true
-          envs: AWS_REGION,REGISTRY
-
-      - name: 2️⃣ Pull image and run container
-        run: |-
-          echo "$REGISTRY"
-          sudo docker login --username AWS -p $(aws ecr get-login-password --region $AWS_REGION) $REGISTRY
-          sudo docker pull $IMAGE_NAME/$ECR_REPOSITORY:latest
-          sudo docker stop $CONTAINER_NAME
-          sudo docker rm $CONTAINER_NAME
-          sudo docker run -d -p 80:8080 --name $CONTAINER_NAME $IMAGE_NAME/$ECR_REPOSITORY:latest
-          sudo docker image prune -a -f
-          sudo docker logout $REGISTRY
-
+          allenvs: true
+          envs: INPUT_AWS_REGION,INPUT_REGISTRY
+          scripts: |-
+            echo "$INPUT_REGISTRY"
+            sudo docker login --username AWS -p $(aws ecr get-login-password --region $INPUT_AWS_REGION) $INPUT_REGISTRY
+            sudo docker pull $IMAGE_NAME/$ECR_REPOSITORY:latest
+            sudo docker stop $CONTAINER_NAME
+            sudo docker rm $CONTAINER_NAME
+            sudo docker run -d -p 80:8080 --name $CONTAINER_NAME $IMAGE_NAME/$ECR_REPOSITORY:latest
+            sudo docker image prune -a -f
+            sudo docker logout $INPUT_REGISTRY
