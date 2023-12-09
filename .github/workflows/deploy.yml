@@ -14,8 +14,8 @@ on:
     branches: ["docker-container"]
 
 env:
-  ECR_REPOSITORY: automate/api           # set this to your Amazon ECR repository name
-  EC2_IP: ec2-43-204-145-191.ap-south-1.compute.amazonaws.com
+  ECR_REPOSITORY: automate/api     # set this to your Amazon ECR repository name
+  HOST: ec2-43-204-145-191.ap-south-1.compute.amazonaws.com
   CONTAINER_NAME: automate-api
 
 jobs:
@@ -24,13 +24,14 @@ jobs:
     runs-on: ubuntu-latest  
     steps:
       - uses: actions/checkout@v3
-      - name: Setup .NET Core SDK 8.0.x
+      - name: 1️⃣ Setup .NET Core SDK 8.0.x
         uses: actions/setup-dotnet@v3
         with:
           dotnet-version: 8.0.x 
-      - name: Install dependencies
+      - name: 2️⃣ Install dependencies
         run: dotnet restore
-      - name: Build
+        
+      - name: 3️⃣ Build
         run: dotnet build --configuration Release --no-restore
 
   publish:
@@ -39,31 +40,30 @@ jobs:
     needs: build
     outputs:
       registry: ${{ steps.login-ecr.outputs.registry }}
-
     steps:
-    - name: Checkout
+    - name: 1️⃣ Checkout
       uses: actions/checkout@v4
-      
-    - name: Configure AWS credentials
+
+    - name: 2️⃣ Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v2
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ secrets.AWS_REGION }}
 
-    - name: Login to Amazon ECR
+    - name: 3️⃣ Login to Amazon ECR
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v2
 
-    - name: Build, tag, and push image to Amazon ECR
+    - name: 4️⃣ Build, tag, and push image to Amazon ECR
       id: build-image
       env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         IMAGE_TAG: ${{ github.sha }}
       run: |
-        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+        docker build -t $REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -t $REGISTRY/$ECR_REPOSITORY:latest .
+        docker push $REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        docker push $REGISTRY/$ECR_REPOSITORY:latest
  
   deploy:
     name: Deploy docker image on AWS EC2
@@ -71,23 +71,23 @@ jobs:
     needs: publish
     runs-on: ubuntu-latest
     steps:
-      - name: SSH into EC2 instance and Deploy docker image
+      - name: 1️⃣ SSH into EC2 instance and Deploy docker image
         uses: appleboy/ssh-action@v1.0.0
         env:
           AWS_REGION: ${{ secrets.AWS_REGION }}
-          ECR_REGISTRY: ${{ needs.publish.outputs.registry }}
+          REGISTRY: ${{ needs.publish.outputs.registry }}
         with:
-          host: ${{ env.EC2_IP }}
+          host: ${{ env.HOST }}
           username: ec2-user
           key: ${{ secrets.SSH_KEY }}
           script_stop: true
-          envs: AWS_REGION,ECR_REGISTRY
+          envs: AWS_REGION,REGISTRY
           script: |-
-            sudo docker login --username AWS -p $(aws ecr get-login-password --region $AWS_REGION) $ECR_REGISTRY
+            sudo docker login --username AWS -p $(aws ecr get-login-password --region $AWS_REGION) $REGISTRY
             sudo docker pull $IMAGE_NAME/$ECR_REPOSITORY:latest
             sudo docker stop $CONTAINER_NAME
             sudo docker rm $CONTAINER_NAME
             sudo docker run -d -p 80:8080 --name $CONTAINER_NAME $IMAGE_NAME/$ECR_REPOSITORY:latest
             sudo docker image prune -a -f
-            sudo docker logout $ECR_REGISTRY
+            sudo docker logout $REGISTRY
 
