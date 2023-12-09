@@ -19,76 +19,75 @@ env:
   CONTAINER_NAME: automate-api
 
 jobs:
-  # build:
-  #   name: Build Project
-  #   runs-on: ubuntu-latest  
-  #   steps:
-  #     - uses: actions/checkout@v3
-  #     - name: Setup .NET Core SDK 8.0.x
-  #       uses: actions/setup-dotnet@v3
-  #       with:
-  #         dotnet-version: 8.0.x 
-  #     - name: Install dependencies
-  #       run: dotnet restore
-  #     - name: Build
-  #       run: dotnet build --configuration Release --no-restore
+  build:
+    name: Build Project
+    runs-on: ubuntu-latest  
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup .NET Core SDK 8.0.x
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: 8.0.x 
+      - name: Install dependencies
+        run: dotnet restore
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
 
-  # publish:
-  #   name: Build Docker image and push to ECR
-  #   runs-on: ubuntu-latest
-  #   needs: build
-  #   outputs:
-  #     ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+  publish:
+    name: Build Docker image and push to ECR
+    runs-on: ubuntu-latest
+    needs: build
+    outputs:
+      registry: ${{ steps.login-ecr.outputs.registry }}
 
-  #   steps:
-  #   - name: Checkout
-  #     uses: actions/checkout@v4
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
       
-  #   - name: Configure AWS credentials
-  #     uses: aws-actions/configure-aws-credentials@v2
-  #     with:
-  #       aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-  #       aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-  #       aws-region: ${{ secrets.AWS_REGION }}
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
 
-  #   - name: Login to Amazon ECR
-  #     id: login-ecr
-  #     uses: aws-actions/amazon-ecr-login@v2
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
 
-  #   - name: Build, tag, and push image to Amazon ECR
-  #     id: build-image
-  #     env:
-  #       ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-  #       IMAGE_TAG: ${{ github.sha }}
-  #     run: |
-  #       docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
-  #       docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-  #       docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+    - name: Build, tag, and push image to Amazon ECR
+      id: build-image
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
  
   deploy:
     name: Deploy docker image on AWS EC2
     environment: production
-    #needs: publish
+    needs: publish
     runs-on: ubuntu-latest
     steps:
       - name: SSH into EC2 instance and Deploy docker image
         uses: appleboy/ssh-action@v1.0.0
         env:
           AWS_REGION: ${{ secrets.AWS_REGION }}
-          ECR_REGISTRY: "409838583292.dkr.ecr.ap-south-1.amazonaws.com"
-          IMAGE_NAME: "409838583292.dkr.ecr.ap-south-1.amazonaws.com/$ECR_REPOSITORY:latest"
+          ECR_REGISTRY: ${{ needs.publish.outputs.registry }}
         with:
           host: ${{ env.EC2_IP }}
           username: ec2-user
           key: ${{ secrets.SSH_KEY }}
           script_stop: true
-          envs: AWS_REGION,ECR_REGISTRY,IMAGE_NAME
+          envs: AWS_REGION,ECR_REGISTRY
           script: |-
             sudo docker login --username AWS -p $(aws ecr get-login-password --region $AWS_REGION) $ECR_REGISTRY
-            sudo docker pull $IMAGE_NAME
+            sudo docker pull $IMAGE_NAME/$ECR_REPOSITORY:latest
             sudo docker stop $CONTAINER_NAME
             sudo docker rm $CONTAINER_NAME
-            sudo docker run -d -p 80:8080 --name $CONTAINER_NAME $IMAGE_NAME
+            sudo docker run -d -p 80:8080 --name $CONTAINER_NAME $IMAGE_NAME/$ECR_REPOSITORY:latest
             sudo docker image prune -a -f
             sudo docker logout $ECR_REGISTRY
 
