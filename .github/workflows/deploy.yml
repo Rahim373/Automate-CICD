@@ -61,9 +61,9 @@ jobs:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         IMAGE_TAG: ${{ github.sha }}
       run: |
-        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-        echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
  
   deploy:
     name: Deploy docker image on AWS EC2
@@ -80,13 +80,14 @@ jobs:
           script_stop: true
       
       - name: Login into ECR registry
-        run: aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | sudo docker login --username AWS --password-stdin ${{ needs.publish.outputs.ECR_REGISTRY }}
+        run: |
+          aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | sudo docker login --username AWS --password-stdin ${{ needs.publish.outputs.ECR_REGISTRY }}
 
       - name: Pull image and run container
         run: |
-          sudo docker pull ${{ needs.publish.outputs.ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG
+          sudo docker pull ${{ needs.publish.outputs.ECR_REGISTRY }}/$ECR_REPOSITORY:latest
           sudo docker stop $CONTAINER_NAME
           sudo docker rm $CONTAINER_NAME
-          sudo docker run -d -p 80:8080 --name $CONTAINER_NAME ${{ needs.publish.outputs.ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG
+          sudo docker run -d -p 80:8080 --name $CONTAINER_NAME ${{ needs.publish.outputs.ECR_REGISTRY }}/$ECR_REPOSITORY:latest
           sudo docker image prune -a -f
 
