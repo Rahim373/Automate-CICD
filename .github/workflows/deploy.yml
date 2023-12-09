@@ -71,13 +71,8 @@ jobs:
     needs: publish
     runs-on: ubuntu-latest
     steps:
-      - name: Pull docker image and run container
+      - name: SSH into EC2 instance
         uses: appleboy/ssh-action@v1.0.0
-        env:
-          AWS_REGION: ${{ secrets.AWS_REGION }}
-          ECR_REGISTRY: ${{ needs.publish.outputs.ECR_REGISTRY }}
-          ECR_REPOSITORY: $ECR_REPOSITORY
-          IMAGE_NAME: ${{ needs.publish.outputs.ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG
         with:
           host: ${{ env.EC2_IP }}
           username: ec2-user
@@ -85,12 +80,21 @@ jobs:
           envs: AWS_REGION,ECR_REGISTRY,ECR_REPOSITORY,IMAGE_NAME
           script_stop: true
           script: |
-            export AWS_REGION=${{ secrets.AWS_REGION }}
-            echo "$AWS_REGION"
-            echo "$AWS_REGION $ECR_REGISTRY $ECR_REPOSITORY"
             aws ecr get-login-password --region $AWS_REGION | sudo docker login --username AWS --password-stdin $ECR_REGISTRY
             sudo docker pull $IMAGE_NAME
             sudo docker stop $CONTAINER_NAME
             sudo docker rm $CONTAINER_NAME
             sudo docker run -d -p 80:8080 --name $CONTAINER_NAME $IMAGE_NAME
             sudo docker image prune -a -f
+      
+      - name: Login into ECR registry
+        run: aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | sudo docker login --username AWS --password-stdin ${{ needs.publish.outputs.ECR_REGISTRY }}
+
+      - name: Pull image and run container
+        run: |
+          sudo docker pull ${{ needs.publish.outputs.ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG
+          sudo docker stop $CONTAINER_NAME
+          sudo docker rm $CONTAINER_NAME
+          sudo docker run -d -p 80:8080 --name $CONTAINER_NAME ${{ needs.publish.outputs.ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG
+          sudo docker image prune -a -f
+
