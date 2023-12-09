@@ -2,7 +2,7 @@ name: Build Docker image and deploy to Amazon EC2
 
 on:
   push:
-    branches: ["docker-container"]
+    branches: ["main"]
 
 env:
   ECR_REPOSITORY: automate/api           # set this to your Amazon ECR repository name
