@@ -75,9 +75,17 @@ jobs:
         env:
           ECR_REGISTRY: ${{needs.publish.outputs.ECR_REGISTRY}}
           PRIVATE_KEY: ${{ secrets.SSH_KEY }}
-        run: |
-          echo "$PRIVATE_KEY" >> $HOME/key.pem
-          chmod 400 $HOME/key.pem
-          echo "$ECR_REGISTRY"
-          ssh -i $HOME/key.pem -o StrictHostKeyChecking=no -t ec2-user@$EC2_IP "aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | sudo docker login --username AWS --password-stdin $ECR_REGISTRY && sudo docker pull $ECR_REGISTRY/$ECR_REPOSITORY && sudo docker stop $CONTAINER_NAME && sudo docker rm $CONTAINER_NAME && sudo docker run -d -p 80:80 --name $CONTAINER_NAME $ECR_REGISTRY/$ECR_REPOSITORY && sudo docker image prune -a -f"
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: $EC2_IP
+          username: ec2-user
+          key: $PRIVATE_KEY
+          script: |
+            aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | sudo docker login --username AWS --password-stdin $ECR_REGISTRY
+            sudo docker pull $ECR_REGISTRY/$ECR_REPOSITORY
+            sudo docker stop $CONTAINER_NAME
+            sudo docker rm $CONTAINER_NAME
+            sudo docker run -d -p 80:8080 --name $CONTAINER_NAME $ECR_REGISTRY/$ECR_REPOSITORY
+            sudo docker image prune -a -f
+          
           
