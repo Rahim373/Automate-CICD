@@ -68,7 +68,7 @@ jobs:
   deploy:
     name: Deploy docker image on AWS EC2
     environment: production
-    needs: publish
+    #needs: publish
     runs-on: ubuntu-latest
     steps:
       - name: SSH into EC2 instance and Deploy docker image
