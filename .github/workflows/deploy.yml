@@ -84,7 +84,7 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           envs: AWS_REGION,ECR_REGISTRY,ECR_REPOSITORY,IMAGE_NAME
           script_stop: true
-          script: |
+          script: >
             aws ecr get-login-password --region $AWS_REGION | sudo docker login --username AWS --password-stdin $ECR_REGISTRY
             sudo docker pull $IMAGE_NAME
             sudo docker stop $CONTAINER_NAME
