@@ -65,10 +65,12 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v2
         
       - name: Pull docker image and run container
+        env:
+          ECR_REGISTRY: ${{needs.publish.outputs.ECR_REGISTRY}}
         run: |
           ssh -i ${{ secrets.SSH_KEY }} ec2-user:$EC2_IP
-          aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | sudo docker login --username AWS --password-stdin ${{jobs.publish.outputs.ECR_REGISTRY}}
-          sudo docker pull ${{jobs.publish.outputs.ECR_REGISTRY}}/$ECR_REPOSITORY
+          aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | sudo docker login --username AWS --password-stdin $ECR_REGISTRY
+          sudo docker pull $ECR_REGISTRY/$ECR_REPOSITORY
           sudo docker stop automate-api
           sudo docker rm automate-api
-          sudo docker run -d -p 80:80 --name automate-api ${{jobs.publish.outputs.ECR_REGISTRY}}/$ECR_REPOSITORY
+          sudo docker run -d -p 80:80 --name automate-api $ECR_REGISTRY/$ECR_REPOSITORY
