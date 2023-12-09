@@ -59,6 +59,7 @@ jobs:
   deploy:
     name: Deploy on EC2 Docker
     needs: publish
+    runs-on: ubuntu-latest
     steps:
       - name: Login to Amazon ECR
         id: login-ecr
