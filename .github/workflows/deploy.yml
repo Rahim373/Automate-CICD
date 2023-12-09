@@ -85,7 +85,8 @@ jobs:
           envs: AWS_REGION,ECR_REGISTRY,ECR_REPOSITORY,IMAGE_NAME
           script_stop: true
           script: |
-            echo "$ECR_REPOSITORY"
+            export AWS_REGION=${{ secrets.AWS_REGION }}
+            echo "$AWS_REGION"
             echo "$AWS_REGION $ECR_REGISTRY $ECR_REPOSITORY"
             aws ecr get-login-password --region $AWS_REGION | sudo docker login --username AWS --password-stdin $ECR_REGISTRY
             sudo docker pull $IMAGE_NAME
