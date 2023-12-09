@@ -6,6 +6,7 @@ on:
 
 env:
   ECR_REPOSITORY: automate/api           # set this to your Amazon ECR repository name
+  EC2_IP: 43.204.145.191
 
 jobs:
   build:
@@ -27,6 +28,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     environment: production
+    outputs:
+      ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -51,3 +55,20 @@ jobs:
         docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
         echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+ 
+  deploy:
+    name: Deploy on EC2 Docker
+    needs: publish
+    steps:
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+        
+      - name: Pull docker image and run container
+        run: |
+          ssh -i ${{ secrets.SSH_KEY }} ec2-user:$EC2_IP
+          aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | sudo docker login --username AWS --password-stdin ${{jobs.publish.outputs.ECR_REGISTRY}}
+          sudo docker pull ${{jobs.publish.outputs.ECR_REGISTRY}}/$ECR_REPOSITORY
+          sudo docker stop automate-api
+          sudo docker rm automate-api
+          sudo docker run -d -p 80:80 --name automate-api ${{jobs.publish.outputs.ECR_REGISTRY}}/$ECR_REPOSITORY
