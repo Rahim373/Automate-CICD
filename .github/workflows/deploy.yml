@@ -6,7 +6,8 @@ on:
 
 env:
   ECR_REPOSITORY: automate/api           # set this to your Amazon ECR repository name
-  EC2_IP: 43.204.145.191
+  EC2_IP: ec2-43-204-145-191.ap-south-1.compute.amazonaws.com
+  CONTAINER_NAME: automate-api
 
 jobs:
   build:
@@ -71,6 +72,6 @@ jobs:
           ssh -i $HOME/key.pem ec2-user:$EC2_IP
           aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | sudo docker login --username AWS --password-stdin $ECR_REGISTRY
           sudo docker pull $ECR_REGISTRY/$ECR_REPOSITORY
-          sudo docker stop automate-api
-          sudo docker rm automate-api
-          sudo docker run -d -p 80:80 --name automate-api $ECR_REGISTRY/$ECR_REPOSITORY
+          sudo docker stop $CONTAINER_NAME
+          sudo docker rm $CONTAINER_NAME
+          sudo docker run -d -p 80:80 --name $CONTAINER_NAME $ECR_REGISTRY/$ECR_REPOSITORY
