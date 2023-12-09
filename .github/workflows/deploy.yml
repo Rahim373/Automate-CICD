@@ -85,11 +85,11 @@ jobs:
           envs: AWS_REGION,ECR_REGISTRY,IMAGE_NAME
       
       - name: Login into ECR registry
-        run: |
-          aws ecr get-login-password --region $AWS_REGION | sudo docker login --username AWS --password-stdin $ECR_REGISTRY
+        run: |-
+          $(aws ecr get-login-password --region $AWS_REGION | sudo docker login --username AWS --password-stdin $ECR_REGISTRY);
 
       - name: Pull image and run container
-        run: |
+        run: |-
           sudo docker pull $IMAGE_NAME
           sudo docker stop $CONTAINER_NAME
           sudo docker rm $CONTAINER_NAME
