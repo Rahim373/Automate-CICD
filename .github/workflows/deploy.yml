@@ -82,6 +82,7 @@ jobs:
           username: ec2-user
           key: ${{ secrets.SSH_KEY }}
           script_stop: true
+          envs: AWS_REGION,ECR_REGISTRY,IMAGE_NAME
       
       - name: Login into ECR registry
         run: |
