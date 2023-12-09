@@ -74,12 +74,11 @@ jobs:
       - name: Pull docker image and run container
         env:
           ECR_REGISTRY: ${{needs.publish.outputs.ECR_REGISTRY}}
-          PRIVATE_KEY: ${{ secrets.SSH_KEY }}
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: $EC2_IP
           username: ec2-user
-          key: $PRIVATE_KEY
+          key: ${{ secrets.SSH_KEY }}
           script: |
             aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | sudo docker login --username AWS --password-stdin $ECR_REGISTRY
             sudo docker pull $ECR_REGISTRY/$ECR_REPOSITORY
