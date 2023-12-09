@@ -1,4 +1,13 @@
-name: Build Docker image and deploy to Amazon EC2
+# Author: Abdur Rahim <rahim.prsf@gmail.com> 
+#
+# This GitHub action contains three Jobs
+# 1. Build: This build the dotnet application
+# 2. Deploy: If build is successfull then this logs into ECR first, then build builds the Docker image and finally uploads
+#    the image into AWS ECR
+# 3. Publish: This logs into the ECR and SSH to the EC2 instance. Then it pulls the Docker image from the ECR
+#    Fianlly, stops previous container and runs the latest image
+
+name: Build Docker image, publish to ECR and deploy to Amazon EC2
 
 on:
   push:
@@ -69,7 +78,7 @@ jobs:
         run: |
           echo "$PRIVATE_KEY" >> $HOME/key.pem
           chmod 400 $HOME/key.pem
-          ssh -i $HOME/key.pem -o StrictHostKeyChecking=no ec2-user@$EC2_IP
+          ssh -i $HOME/key.pem -o StrictHostKeyChecking=no -tt ec2-user@$EC2_IP
           aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | sudo docker login --username AWS --password-stdin $ECR_REGISTRY
           sudo docker pull $ECR_REGISTRY/$ECR_REPOSITORY
           sudo docker stop $CONTAINER_NAME
