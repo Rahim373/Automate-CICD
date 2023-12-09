@@ -64,8 +64,11 @@ jobs:
       - name: Pull docker image and run container
         env:
           ECR_REGISTRY: ${{needs.publish.outputs.ECR_REGISTRY}}
+          PRIVATE_KEY: ${{ secrets.SSH_KEY }}
         run: |
-          ssh -i ${{ secrets.SSH_KEY }} ec2-user:$EC2_IP
+          echo "$PRIVATE_KEY" >> $HOME/key.pem
+          chmod 400 $HOME/key.pem
+          ssh -i $HOME/key.pem ec2-user:$EC2_IP
           aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | sudo docker login --username AWS --password-stdin $ECR_REGISTRY
           sudo docker pull $ECR_REGISTRY/$ECR_REPOSITORY
           sudo docker stop automate-api
