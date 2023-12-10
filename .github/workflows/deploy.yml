@@ -7,7 +7,7 @@
 # 3. Publish: This logs into the ECR and SSH to the EC2 instance. Then it pulls the Docker image from the ECR
 #    Fianlly, stops previous container and runs the latest image
 
-name: Build Docker image, publish to ECR and deploy to Amazon EC2
+name: ⚙️ Build Docker image, 📦 publish to ECR and, 🚀 deploy to Amazon EC2
 
 on:
   push:
@@ -20,7 +20,7 @@ env:
 
 jobs:
   build:
-    name: Build Project
+    name: 🛠 Build Project
     runs-on: ubuntu-latest  
     steps:
       - uses: actions/checkout@v3
@@ -35,7 +35,7 @@ jobs:
         run: dotnet build --configuration Release --no-restore
 
   publish:
-    name: Build Docker image and push to ECR
+    name: 📦 Build Docker image and push to ECR
     runs-on: ubuntu-latest
     needs: build
     outputs:
@@ -64,9 +64,13 @@ jobs:
         docker build -t $REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -t $REGISTRY/$ECR_REPOSITORY:latest .
         docker push $REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
         docker push $REGISTRY/$ECR_REPOSITORY:latest
+
+    - name: 5️⃣ Log out of Amazon ECR
+      if: always()
+      run: docker logout ${{ steps.login-ecr.outputs.registry }}
  
   deploy:
-    name: Deploy docker image on AWS EC2
+    name: 🚀 Deploy docker image on AWS EC2
     environment: production
     needs: publish
     runs-on: ubuntu-latest
@@ -84,7 +88,8 @@ jobs:
           allenvs: true
           envs: INPUT_AWS_REGION,INPUT_REGISTRY
           scripts: |-
-            echo "$INPUT_REGISTRY"
+            echo "Registry: $INPUT_REGISTRY"
+            echo "Region: $INPUT_AWS_REGION"
             sudo docker login --username AWS -p $(aws ecr get-login-password --region $INPUT_AWS_REGION) $INPUT_REGISTRY
             sudo docker pull $IMAGE_NAME/$ECR_REPOSITORY:latest
             sudo docker stop $CONTAINER_NAME
