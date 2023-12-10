@@ -89,7 +89,7 @@ jobs:
           script_stop: true
           allenvs: true
           envs: INPUT_AWS_REGION,INPUT_REGISTRY
-          scripts: |-
+          script: |-
             echo "Registry: $INPUT_REGISTRY"
             echo "Region: $INPUT_AWS_REGION"
             sudo docker login --username AWS -p $(aws ecr get-login-password --region $INPUT_AWS_REGION) $INPUT_REGISTRY
