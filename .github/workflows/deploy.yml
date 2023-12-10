@@ -42,7 +42,6 @@ jobs:
     steps:
     - name: 1️⃣ Checkout
       uses: actions/checkout@v4
-
     - name: 2️⃣ Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v2
       with:
@@ -50,13 +49,11 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ secrets.AWS_REGION }}
         mask-aws-account-id: 'false'
-
     - name: 3️⃣ Login to Amazon ECR
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v2
       with:
         mask-password: 'false'
-
     - name: 4️⃣ Build, tag, and push image to Amazon ECR
       id: build-image
       env:
@@ -66,13 +63,11 @@ jobs:
         docker build -t $REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -t $REGISTRY/$ECR_REPOSITORY:latest .
         docker push $REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
         docker push $REGISTRY/$ECR_REPOSITORY:latest
-
     - name: 5️⃣ Log out of Amazon ECR
       if: always()
       run: docker logout ${{ steps.login-ecr.outputs.registry }}
-
     outputs:
-      ecr-registry: ${{ steps.login-ecr.outputs.registry }}
+      registry: ${{ steps.login-ecr.outputs.registry }}
  
 
   deploy:
@@ -81,25 +76,26 @@ jobs:
     needs: publish
     runs-on: ubuntu-latest
     steps:
-      - name: 1️⃣ SSH into EC2 instance and Deploy docker image
+      - name: 1️⃣ SSH into EC2 instance
         uses: appleboy/ssh-action@v1.0.0
         env:
           INPUT_AWS_REGION: ${{ secrets.AWS_REGION }}
-          INPUT_REGISTRY: ${{ needs.publish.outputs.ecr-registry }}
+          INPUT_REGISTRY: ${{ needs.publish.outputs.registry }}
         with:
           host: ${{ env.HOST }}
           username: ec2-user
           key: ${{ secrets.SSH_KEY }}
           script_stop: true
           allenvs: true
-          envs: INPUT_AWS_REGION,INPUT_REGISTRY
-          script: |-
-            echo "Registry: $INPUT_REGISTRY"
-            echo "Region: $INPUT_AWS_REGION"
-            sudo docker login --username AWS -p $(aws ecr get-login-password --region $INPUT_AWS_REGION) $INPUT_REGISTRY
-            sudo docker pull $IMAGE_NAME/$ECR_REPOSITORY:latest
-            sudo docker stop $CONTAINER_NAME
-            sudo docker rm $CONTAINER_NAME
-            sudo docker run -d -p 80:8080 --name $CONTAINER_NAME $IMAGE_NAME/$ECR_REPOSITORY:latest
-            sudo docker image prune -a -f
-            sudo docker logout $INPUT_REGISTRY
+          envs: INPUT_AWS_REGION,INPUT_REGISTRY            
+      - name: 2️⃣ Deploy docker image
+        run: |
+          echo "Registry: $INPUT_REGISTRY"
+          echo "Region: $INPUT_AWS_REGION"
+          sudo docker login --username AWS -p $(aws ecr get-login-password --region $INPUT_AWS_REGION) $INPUT_REGISTRY
+          sudo docker pull $IMAGE_NAME/$ECR_REPOSITORY:latest
+          sudo docker stop $CONTAINER_NAME
+          sudo docker rm $CONTAINER_NAME
+          sudo docker run -d -p 80:8080 --name $CONTAINER_NAME $IMAGE_NAME/$ECR_REPOSITORY:latest
+          sudo docker image prune -a -f
+          sudo docker logout $INPUT_REGISTRY
