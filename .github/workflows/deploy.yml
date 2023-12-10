@@ -34,6 +34,7 @@ jobs:
       - name: 3️⃣ Build
         run: dotnet build --configuration Release --no-restore
 
+
   publish:
     name: 📦 Build Docker image and push to ECR
     runs-on: ubuntu-latest
@@ -65,38 +66,28 @@ jobs:
     - name: 5️⃣ Log out of Amazon ECR
       if: always()
       run: docker logout ${{ steps.login-ecr.outputs.registry }}
+    outputs:
+      registry: ${{ steps.login-ecr.outputs.registry }}
  
+
   deploy:
     name: 🚀 Deploy docker image on AWS EC2
     environment: production
     needs: publish
     runs-on: ubuntu-latest
     steps:
-      - name: 1️⃣ Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-          mask-aws-account-id: 'false'
-      - name: 2️⃣ Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-        with:
-          mask-password: 'false'
-      - name: 4️⃣ SSH into EC2 instance
+      - name: 1️⃣ SSH into EC2 instance
         uses: appleboy/ssh-action@v1.0.0
-        env:
-          INPUT_AWS_REGION: ${{ secrets.AWS_REGION }}
-          INPUT_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         with:
           host: ${{ env.HOST }}
           username: ec2-user
           key: ${{ secrets.SSH_KEY }}
           script_stop: true
-          allenvs: true
-          envs: INPUT_AWS_REGION,INPUT_REGISTRY            
+          allenvs: true          
       - name: 2️⃣ Deploy docker image
+        env: 
+          INPUT_AWS_REGION: ${{ secrets.AWS_REGION }}
+          INPUT_REGISTRY: ${{ needs.publish.outputs.registry }}
         run: |
           echo "Registry: $INPUT_REGISTRY"
           echo "Region: $INPUT_AWS_REGION"
