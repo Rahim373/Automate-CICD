@@ -91,7 +91,7 @@ jobs:
         run: |
           echo "Registry: $INPUT_REGISTRY"
           echo "Region: $INPUT_AWS_REGION"
-          sudo docker login --username AWS -p $(aws ecr get-login-password --region $INPUT_AWS_REGION) $INPUT_REGISTRY
+          aws ecr get-login-password --region $INPUT_AWS_REGION | sudo docker login --username AWS --password-stdin $INPUT_REGISTRY
           sudo docker pull $IMAGE_NAME/$ECR_REPOSITORY:latest
           sudo docker stop $CONTAINER_NAME
           sudo docker rm $CONTAINER_NAME
