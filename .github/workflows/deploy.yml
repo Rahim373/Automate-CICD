@@ -34,12 +34,11 @@ jobs:
       - name: 3️⃣ Build
         run: dotnet build --configuration Release --no-restore
 
+        
   publish:
     name: 📦 Build Docker image and push to ECR
     runs-on: ubuntu-latest
     needs: build
-    outputs:
-      registry: ${{ steps.login-ecr.outputs.registry }}
     steps:
     - name: 1️⃣ Checkout
       uses: actions/checkout@v4
@@ -70,7 +69,11 @@ jobs:
     - name: 5️⃣ Log out of Amazon ECR
       if: always()
       run: docker logout ${{ steps.login-ecr.outputs.registry }}
+
+    outputs:
+      ecr-registry: ${{ steps.login-ecr.outputs.registry }}
  
+
   deploy:
     name: 🚀 Deploy docker image on AWS EC2
     environment: production
@@ -81,7 +84,7 @@ jobs:
         uses: appleboy/ssh-action@v1.0.0
         env:
           INPUT_AWS_REGION: ${{ secrets.AWS_REGION }}
-          INPUT_REGISTRY: ${{ needs.publish.outputs.registry }}
+          INPUT_REGISTRY: ${{ needs.publish.outputs.ecr-registry }}
         with:
           host: ${{ env.HOST }}
           username: ec2-user
